@@ -7,3 +7,7 @@ venv/
 #CPython files
 __pycache__/
 *.pyc
+
+#Credentials
+credentials.json
+token.json
