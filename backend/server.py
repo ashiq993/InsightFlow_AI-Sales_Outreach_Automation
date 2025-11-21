@@ -33,6 +33,11 @@ docs_manager = None
 
 @app.on_event("startup")
 async def startup_event():
+    """
+    Initialize the global GoogleDocsManager instance at application startup.
+    
+    Attempts to instantiate and assign the module-level `docs_manager`. Prints a success message when initialization succeeds; prints a warning with the exception details if initialization fails.
+    """
     global docs_manager
     try:
         docs_manager = GoogleDocsManager()
@@ -43,7 +48,20 @@ async def startup_event():
 @app.post("/upload")
 async def upload_file_for_analysis(file: UploadFile = File(...)):
     """
-    Uploads a file with its original filename and returns a file_id.
+    Store an uploaded file and return an opaque file_id for later processing.
+    
+    Parameters:
+        file (UploadFile): The uploaded file; its original filename is used (sanitized to a basename) for storage.
+    
+    Returns:
+        dict: {
+            "status": "success",
+            "file_id": "<urlsafe-base64-encoded-path>",  # URL-safe base64 encoding of the saved file path
+            "filename": "<stored_filename>"               # sanitized original filename
+        }
+    
+    Raises:
+        HTTPException: 400 if the upload has no filename; 500 if saving the file or encoding fails.
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -71,6 +89,14 @@ async def upload_file_for_analysis(file: UploadFile = File(...)):
 
 @app.websocket("/ws/analyze/{file_id}")
 async def websocket_analyze(websocket: WebSocket, file_id: str):
+    """
+    Handle an analysis request over a WebSocket by running the backend processing script, streaming progress, and delivering the final result.
+    
+    This coroutine accepts a WebSocket connection and a base64-encoded file identifier, decodes it to a local file path, runs the project's main.py as a subprocess with that file as input, and forwards subprocess stdout lines to the client. If a subprocess line begins with `OUTPUT_FILE:`, that path is treated as the produced file. On successful completion, the produced file (if present) is uploaded to Google Drive and a JSON message with type `"COMPLETED"`, `drive_link`, and `filename` is sent. The function also sends textual error messages for missing files, process failures, or upload failures, handles client disconnects by terminating the subprocess, and removes local input/output artifacts during cleanup.
+    
+    Parameters:
+        file_id (str): URL-safe base64 encoding of the uploaded file's local filesystem path.
+    """
     await websocket.accept()
     
     tmp_path = ""
@@ -180,6 +206,12 @@ async def websocket_analyze(websocket: WebSocket, file_id: str):
 
 @app.get("/health")
 def health_check():
+    """
+    Report the service health status.
+    
+    Returns:
+        dict: A JSON-serializable mapping with key "status" set to "ok".
+    """
     return {"status": "ok"}
 
 if __name__ == "__main__":

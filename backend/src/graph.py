@@ -7,11 +7,28 @@ from .tools.leads_loader.lead_loader_base import LeadLoaderBase
 class OutReachAutomation:
     def __init__(self, loader: LeadLoaderBase, docs_manager=None):
         # Initialize the automation workflow by building the graph
+        """
+        Initialize the outreach automation and build its compiled state graph.
+        
+        Parameters:
+            loader (LeadLoaderBase): Source of leads used to construct the workflow nodes.
+            docs_manager (optional): Optional manager for creating or storing generated documents; defaults to None.
+        
+        Notes:
+            Sets self.app to the compiled state graph returned by build_graph(loader, docs_manager).
+        """
         self.app = self.build_graph(loader, docs_manager)
 
     def build_graph(self, loader, docs_manager=None):
         """
-        Constructs the state graph for the outreach automation workflow.
+        Builds and compiles the state graph representing the outreach automation workflow.
+        
+        Parameters:
+        	loader: LeadLoaderBase — Source of leads used to initialize workflow nodes.
+        	docs_manager (optional): Optional manager for document/report handling passed to nodes.
+        
+        Returns:
+        	compiled_graph: The compiled StateGraph instance representing the complete workflow.
         """
         # Create the main graph with a predefined state
         graph = StateGraph(GraphState)
@@ -106,4 +123,3 @@ class OutReachAutomation:
         # Loop back to check for remaining leads
         graph.add_edge("update_CRM", "check_for_remaining_leads")
         return graph.compile()
-
