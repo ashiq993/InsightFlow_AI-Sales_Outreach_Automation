@@ -1,6 +1,5 @@
 # Environment Variables
 .env
-.env.local
 
 # Virtual Environment
 venv/
@@ -23,9 +22,11 @@ build/
 *.egg-info/
 .Python
 
+
 # Google Credentials
 credentials.json
 token.json
+
 
 # IDE & Editors
 .vscode/
@@ -37,7 +38,6 @@ token.json
 Thumbs.db
 
 # Reports & Generated Files
-reports/
 *.pdf
 *.docx
 
@@ -45,8 +45,24 @@ reports/
 node_modules/
 frontend/dist/
 frontend/build/
+frontend/.vite/
+.vite/
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+logs/
+
+# Temporary Files
+*.tmp
+tmp/
+temp/
+uploads/
+backend/uploads/
+
+# Coverage & Testing
 .coverage
 htmlcov/
 .pytest_cache/
