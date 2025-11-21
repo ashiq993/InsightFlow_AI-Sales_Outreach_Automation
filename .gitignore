@@ -45,8 +45,28 @@ reports/
 node_modules/
 frontend/dist/
 frontend/build/
+frontend/.vite/
+.vite/
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+logs/
+
+# Temporary Files
+*.tmp
+tmp/
+temp/
+uploads/
+backend/uploads/
+
+# Database
+*.db
+*.sqlite
+
+# Coverage & Testing
 .coverage
 htmlcov/
 .pytest_cache/
