@@ -315,3 +315,54 @@ class GoogleDocsManager:
                     os.remove(temp_file_path)
                 except Exception:
                     pass
+    def upload_file(self, file_path, file_name, folder_name, make_shareable=False):
+        """
+        Upload a binary file to Google Drive.
+        """
+        try:
+            # Ensure the folder exists
+            if "/" in folder_name:
+                folder_id, folder_url = self._get_or_create_folder_by_path(
+                    folder_name, make_shareable=True
+                )
+            else:
+                folder_id, folder_url = self._get_or_create_folder(
+                    folder_name, make_shareable=True
+                )
+            
+            if not folder_id:
+                raise ValueError("Failed to get or create the folder.")
+
+            file_metadata = {
+                "name": file_name,
+                "parents": [folder_id]
+            }
+            
+            # Determine mime type based on extension
+            mime_type = "application/octet-stream"
+            if file_name.endswith(".xlsx"):
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            elif file_name.endswith(".csv"):
+                mime_type = "text/csv"
+                
+            media = MediaFileUpload(
+                file_path, mimetype=mime_type, resumable=True
+            )
+            
+            file = (
+                self.drive_service.files()
+                .create(body=file_metadata, media_body=media, fields="id, webViewLink")
+                .execute()
+            )
+            
+            file_id = file.get("id")
+            file_link = file.get("webViewLink")
+            
+            if make_shareable:
+                self._make_document_shareable(file_id)
+                
+            return file_link
+            
+        except Exception as e:
+            print(f"Failed to upload file to Drive: {e}")
+            return None

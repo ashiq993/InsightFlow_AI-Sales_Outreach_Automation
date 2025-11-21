@@ -1,55 +1,58 @@
-# Environment Variables
-.env
-.env.local
+# Git
+.git/
+.gitignore
+.gitattributes
 
-# Virtual Environment
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
 venv/
 env/
 ENV/
 .venv
 
-# Python Bytecode
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyc
-*.pyo
-*.so
+# Environment
+.env
+.env.local
 
-# Python Distribution / Packaging
-dist/
-build/
-*.egg
-*.egg-info/
-.Python
-
-# Google Credentials
-credentials.json
-token.json
-
-# IDE & Editors
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Credentials
+token.json
+credentials.json
 
 # Reports & Generated Files
 reports/
 *.pdf
 *.docx
 
-# Frontend
+# Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build Artifacts
+dist/
+build/
 frontend/dist/
 frontend/build/
 frontend/.vite/
 .vite/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Logs
 *.log
@@ -60,14 +63,20 @@ logs/
 tmp/
 temp/
 uploads/
-backend/uploads/
 
 # Database
 *.db
 *.sqlite
 
-# Coverage & Testing
+# Testing
 .coverage
 htmlcov/
 .pytest_cache/
 .tox/
+
+# Documentation (unnecessary in image)
+*.md
+docs/
+
+# Examples
+examples/

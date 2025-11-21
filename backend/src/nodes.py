@@ -22,9 +22,9 @@ SAVE_TO_GOOGLE_DOCS = True
 
 
 class OutReachAutomationNodes:
-    def __init__(self, loader):
+    def __init__(self, loader, docs_manager=None):
         self.lead_loader = loader
-        self.docs_manager = GoogleDocsManager()
+        self.docs_manager = docs_manager if docs_manager else GoogleDocsManager()
         self.drive_folder_name = ""
 
     def get_new_leads(self, state: GraphInputState):
@@ -35,53 +35,56 @@ class OutReachAutomationNodes:
 
         leads = []
         for lead in raw_leads:
-            # Branch 1: Google Sheets with Apollo-style export
-            # Expected headers:
-            # NAME | APOLLO ID | ROLE | MAIL ID | LINKEDIN | LOCATION | COMPANY | (optional) STATUS
-            if "NAME" in lead and "MAIL ID" in lead:
-                full_name = lead.get("NAME", "")
-                email = lead.get("MAIL ID", "")
-                location = lead.get("LOCATION", "")
-                role = lead.get("ROLE", "")
-                linkedin = lead.get("LINKEDIN", "")
-                company = lead.get("COMPANY", "")
+            # Normalize keys to handle different input formats (CSV/Excel)
+            # We look for standard keys or variations
+            
+            # Helper to find key case-insensitively
+            def get_val(d, key_list):
+                for k in d.keys():
+                    if k.upper() in key_list:
+                        return d[k]
+                return ""
 
-                # Infer website from email domain when possible
-                website = ""
-                if email and "@" in email:
-                    domain = email.split("@")[-1]
-                    if "." in domain:
-                        website = domain
+            full_name = get_val(lead, ["NAME", "FULL NAME", "FULL_NAME", "FIRST NAME", "FIRST_NAME"])
+            # If name is split, try to combine
+            if not full_name:
+                first = get_val(lead, ["FIRST NAME", "FIRST_NAME"])
+                last = get_val(lead, ["LAST NAME", "LAST_NAME"])
+                if first or last:
+                    full_name = f"{first} {last}".strip()
+            
+            email = get_val(lead, ["MAIL ID", "EMAIL", "EMAIL ADDRESS", "EMAIL_ADDRESS"])
+            location = get_val(lead, ["LOCATION", "ADDRESS", "CITY", "COUNTRY"])
+            role = get_val(lead, ["ROLE", "JOB TITLE", "TITLE", "POSITION"])
+            linkedin = get_val(lead, ["LINKEDIN", "LINKEDIN URL", "LINKEDIN_URL"])
+            company = get_val(lead, ["COMPANY", "COMPANY NAME", "COMPANY_NAME"])
+            phone = get_val(lead, ["PHONE", "PHONE NUMBER", "MOBILE"])
 
-                leads.append(
-                    LeadData(
-                        id=str(
-                            lead.get("id", "")
-                        ),  # for Google Sheets this is the row number
-                        name=full_name,
-                        email=email,
-                        phone=lead.get("Phone", ""),
-                        address=location,
-                        profile="",  # will be constructed from LinkedIn + research nodes
-                        role=role,
-                        linkedin=linkedin,
-                        location=location,
-                        company=company,
-                        website=website,
-                    )
+            # Infer website from email domain when possible
+            website = ""
+            if email and "@" in email:
+                domain = email.split("@")[-1]
+                if "." in domain:
+                    website = domain
+
+            # Use 'id' if present, otherwise use index logic from loader
+            lead_id = str(lead.get("id", ""))
+
+            leads.append(
+                LeadData(
+                    id=lead_id,
+                    name=full_name,
+                    email=email,
+                    phone=phone,
+                    address=location,
+                    profile="",  # will be constructed from LinkedIn + research nodes
+                    role=role,
+                    linkedin=linkedin,
+                    location=location,
+                    company=company,
+                    website=website,
                 )
-            else:
-                # Branch 2: default behaviour for Airtable / other CRMs using the original schema
-                leads.append(
-                    LeadData(
-                        id=str(lead["id"]),
-                        name=f'{lead.get("First Name", "")} {lead.get("Last Name", "")}',
-                        email=lead.get("Email", ""),
-                        phone=lead.get("Phone", ""),
-                        address=lead.get("Address", ""),
-                        profile="",  # will be constructed
-                    )
-                )
+            )
 
         print(
             Fore.YELLOW + f"----- Fetched {len(leads)} leads -----\n" + Style.RESET_ALL
