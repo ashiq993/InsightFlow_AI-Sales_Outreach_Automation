@@ -51,6 +51,8 @@ dist/
 build/
 frontend/dist/
 frontend/build/
+frontend/.vite/
+.vite/
 
 # Logs
 *.log
