@@ -286,6 +286,19 @@ class GoogleDocsManager:
             return None
 
     def convert_markdown_to_google_doc(self, markdown_content, title):
+        """
+        Convert Markdown text into a Google Document and return the created document's Drive ID.
+        
+        Parameters:
+        	markdown_content (str): Markdown-formatted text to upload.
+        	title (str): Title to assign to the created Google Document.
+        
+        Returns:
+        	doc_id (str): ID of the created Google Document, or `None` if the conversion or upload failed.
+        
+        Notes:
+        	A temporary .md file is created for upload and removed before the function returns.
+        """
         temp_file_path = None
         try:
             fd, temp_file_path = tempfile.mkstemp(suffix=".md")
@@ -317,7 +330,16 @@ class GoogleDocsManager:
                     pass
     def upload_file(self, file_path, file_name, folder_name, make_shareable=False):
         """
-        Upload a binary file to Google Drive.
+        Upload a local file to Google Drive into the specified folder and optionally make it shareable.
+        
+        Parameters:
+            file_path (str): Path to the local file to upload.
+            file_name (str): Desired name of the file in Drive (used to infer MIME type for .xlsx and .csv).
+            folder_name (str): Target folder name or nested path (e.g., "Root/Sub/Leaf"); supports creating folders as needed.
+            make_shareable (bool): If True, grant link access to the uploaded file.
+        
+        Returns:
+            str: The Drive `webViewLink` for the uploaded file on success, `None` on failure.
         """
         try:
             # Ensure the folder exists

@@ -6,6 +6,10 @@ import DataTemplateGuide from './components/DataTemplateGuide';
 import FileUploader from './components/FileUploader';
 import ThemeToggle from './components/ThemeToggle';
 
+/**
+ * Root application component that renders the main layout and primary UI sections.
+ * @returns {JSX.Element} The app's top-level React element containing the header (with theme toggle), main content (hero, data template guide, file uploader), and footer.
+ */
 function App() {
   return (
     <div className="app-container">

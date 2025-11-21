@@ -23,11 +23,31 @@ SAVE_TO_GOOGLE_DOCS = True
 
 class OutReachAutomationNodes:
     def __init__(self, loader, docs_manager=None):
+        """
+        Initialize the OutReachAutomationNodes instance with a lead loader and an optional Google Docs manager.
+        
+        Parameters:
+            loader: Lead data loader used to fetch and update lead records.
+            docs_manager: Optional manager for Google Docs; when omitted, a new GoogleDocsManager is created and used.
+        
+        Description:
+            Stores the provided loader and docs_manager on the instance and initializes an empty drive folder name.
+        """
         self.lead_loader = loader
         self.docs_manager = docs_manager if docs_manager else GoogleDocsManager()
         self.drive_folder_name = ""
 
     def get_new_leads(self, state: GraphInputState):
+        """
+        Fetches raw lead records, normalizes fields across varied input schemas, and returns structured lead entries and their count.
+        
+        Normalizes name, email, location, role, LinkedIn URL, company, and phone from common key variants, infers a website from the email domain when available, and uses any provided record `id` for each lead.
+        
+        Returns:
+            dict: A mapping containing:
+                - "leads_data" (list[LeadData]): Normalized lead records ready for further processing.
+                - "number_leads" (int): The number of leads returned.
+        """
         print(Fore.YELLOW + "----- Fetching new leads -----\n" + Style.RESET_ALL)
 
         # Fetch new leads using the provided loader
@@ -40,6 +60,16 @@ class OutReachAutomationNodes:
             
             # Helper to find key case-insensitively
             def get_val(d, key_list):
+                """
+                Finds and returns the first value in a mapping whose key matches any string in key_list, using case-insensitive comparison.
+                
+                Parameters:
+                    d (dict): Mapping to search for matching keys.
+                    key_list (Iterable[str]): Collection of key names to match against; comparison is case-insensitive.
+                
+                Returns:
+                    The value from `d` for the first matching key, or an empty string if no match is found.
+                """
                 for k in d.keys():
                     if k.upper() in key_list:
                         return d[k]
