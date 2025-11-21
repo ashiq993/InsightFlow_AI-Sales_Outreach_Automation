@@ -5,11 +5,11 @@ from .tools.leads_loader.lead_loader_base import LeadLoaderBase
 
 
 class OutReachAutomation:
-    def __init__(self, loader: LeadLoaderBase):
+    def __init__(self, loader: LeadLoaderBase, docs_manager=None):
         # Initialize the automation workflow by building the graph
-        self.app = self.build_graph(loader)
+        self.app = self.build_graph(loader, docs_manager)
 
-    def build_graph(self, loader):
+    def build_graph(self, loader, docs_manager=None):
         """
         Constructs the state graph for the outreach automation workflow.
         """
@@ -17,7 +17,7 @@ class OutReachAutomation:
         graph = StateGraph(GraphState)
         
         # Initialize the nodes with the provided lead loader
-        nodes = OutReachAutomationNodes(loader)
+        nodes = OutReachAutomationNodes(loader, docs_manager)
 
         # **Step 1: Adding nodes to the graph**
         # Fetch new leads from the CRM

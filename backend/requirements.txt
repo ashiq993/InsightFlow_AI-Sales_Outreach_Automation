@@ -15,3 +15,8 @@ python-dotenv
 bs4
 unstructured
 html2text
+fastapi
+uvicorn
+python-multipart
+pandas
+openpyxl
