@@ -62,6 +62,13 @@ temp/
 uploads/
 backend/uploads/
 
+<<<<<<< HEAD
+=======
+# Database
+*.db
+*.sqlite
+
+>>>>>>> 89fac8d8d4516820b83f3de59d8de4ab5c912f09
 # Coverage & Testing
 .coverage
 htmlcov/
