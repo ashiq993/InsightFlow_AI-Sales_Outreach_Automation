@@ -46,8 +46,8 @@ The system analyzes **LinkedIn data**, company websites, and recent news to gene
 
 1.  **Clone the repository:**
     ```sh
-    git clone https://github.com/kaymen99/sales-outreach-automation-langgraph.git
-    cd sales-outreach-automation-langgraph
+    git clone https://github.com/ashiq993/InsightFlow_AI-Sales_Outreach_Automation.git
+    cd InsightFlow_AI-Sales_Outreach_Automation
     ```
 
 2.  **Set up environment variables:**
