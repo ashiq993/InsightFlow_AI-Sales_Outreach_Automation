@@ -1,6 +1,5 @@
 # Environment Variables
 .env
-.env.local
 
 # Virtual Environment
 venv/
@@ -37,7 +36,6 @@ token.json
 Thumbs.db
 
 # Reports & Generated Files
-reports/
 *.pdf
 *.docx
 
