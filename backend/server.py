@@ -55,11 +55,9 @@ class WebSocketLogHandler(logging.Handler):
 @app.on_event("startup")
 async def startup_event():
     global docs_manager
-    try:
-        docs_manager = GoogleDocsManager()
-        logger.info("GoogleDocsManager initialized successfully.")
-    except Exception as e:
-        logger.warning(f"Failed to initialize GoogleDocsManager: {e}")
+    # Don't initialize GoogleDocsManager at startup - defer until needed
+    # This prevents blocking when OAuth credentials don't exist
+    logger.info("Application startup complete. Google services will initialize on first use.")
 
 @app.post("/upload")
 async def upload_file_for_analysis(file: UploadFile = File(...)):
@@ -162,7 +160,15 @@ async def websocket_analyze(websocket: WebSocket, file_id: str):
             # Use global docs_manager if available
             global docs_manager
             if not docs_manager:
-                docs_manager = GoogleDocsManager()
+                try:
+                    logger.info("Initializing Google Docs Manager (lazy initialization)...")
+                    docs_manager = GoogleDocsManager()
+                    logger.info("GoogleDocsManager initialized successfully.")
+                except Exception as e:
+                    logger.error(f"Failed to initialize GoogleDocsManager: {e}")
+                    await websocket.send_text(f"Warning: Google services unavailable - {str(e)}")
+                    # Continue without Google Docs integration
+                    docs_manager = None
                 
             automation = OutReachAutomation(lead_loader, docs_manager)
             app_graph = automation.app
@@ -203,7 +209,7 @@ async def websocket_analyze(websocket: WebSocket, file_id: str):
             
             # --- Upload to Drive ---
             if os.path.exists(output_path):
-                await websocket.send_text("Uploading processed file to Drive...")
+                await websocket.send_text("Uploading processed CSV or XLSX file to Drive...")
                 
                 processed_filename = os.path.basename(output_path)
                 

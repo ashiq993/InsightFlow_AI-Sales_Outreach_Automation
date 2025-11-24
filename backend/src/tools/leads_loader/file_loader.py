@@ -12,11 +12,11 @@ class FileLeadLoader(LeadLoaderBase):
         # Filter by status if 'STATUS' column exists
         # Note: server.py ensures STATUS column exists and is uppercase
         if "STATUS" in self.df.columns:
-            filtered_df = self.df[self.df["STATUS"] == status_filter]
+            filtered_df = self.df[self.df["STATUS"] == status_filter].copy()
         else:
             # Fallback if validation skipped for some reason
             if status_filter == "":
-                filtered_df = self.df
+                filtered_df = self.df.copy()
             else:
                 filtered_df = pd.DataFrame()
         
@@ -46,6 +46,16 @@ class FileLeadLoader(LeadLoaderBase):
             
         if mask.any():
             for col, val in update_data.items():
+                # Convert value to match column dtype to avoid FutureWarning
+                if col in self.df.columns and not pd.isna(val):
+                    col_dtype = self.df[col].dtype
+                    # If column is numeric and value is string, convert
+                    if pd.api.types.is_numeric_dtype(col_dtype):
+                        try:
+                            val = pd.to_numeric(val, errors='coerce')
+                        except (ValueError, TypeError):
+                            pass  # Keep original value if conversion fails
                 self.df.loc[mask, col] = val
                 
         return True
+
