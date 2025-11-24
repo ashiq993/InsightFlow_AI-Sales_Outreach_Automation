@@ -5,16 +5,16 @@ const ThemeToggle = () => {
     const [theme, setTheme] = useState('light');
 
     useEffect(() => {
-        // Check local storage or system preference on mount
+        // Check local storage on mount
         const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
         if (savedTheme) {
             setTheme(savedTheme);
             document.documentElement.setAttribute('data-theme', savedTheme);
-        } else if (prefersDark) {
-            setTheme('dark');
-            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            // Default to light mode, ignoring system preference
+            setTheme('light');
+            document.documentElement.setAttribute('data-theme', 'light');
         }
     }, []);
 

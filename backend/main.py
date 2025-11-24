@@ -1,19 +1,7 @@
 import os
-import json
-from datetime import datetime
-from dotenv import load_dotenv
-from src.graph import OutReachAutomation
-from src.state import *
-from src.tools.leads_loader.airtable import AirtableLeadLoader
-from src.tools.leads_loader.google_sheets import GoogleSheetLeadLoader
-
-# Load environment variables from a .env file
-load_dotenv()
-
-import os
+import sys
 import json
 import argparse
-import sys
 import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
@@ -21,8 +9,14 @@ from src.graph import OutReachAutomation
 from src.state import *
 from src.tools.leads_loader.file_loader import FileLeadLoader
 
+import logging
+
 # Load environment variables from a .env file
 load_dotenv()
+
+# Configure logging for CLI usage
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Set up argument parser
@@ -49,6 +43,22 @@ if __name__ == "__main__":
             print("Error: Invalid file format")
             sys.exit(1)
             
+        # --- Column Validation & Normalization ---
+        # Normalize existing columns to uppercase for consistent checking
+        df.columns = [c.strip().upper() for c in df.columns]
+        
+        # Required columns and their default values
+        required_columns = {
+            "STATUS": "NEW",
+            "LEAD_SCORE": 0,
+            "QUALIFIED": "NO"  # Using "NO" string instead of False to match typical CSV/Excel data
+        }
+        
+        for col, default_val in required_columns.items():
+            if col not in df.columns:
+                print(f"Adding missing column: {col} with default: {default_val}")
+                df[col] = default_val
+                
         print(f"Loaded {len(df)} records.")
         sys.stdout.flush()
 

@@ -76,7 +76,8 @@ const FileUploader = () => {
 
         try {
             // Step 1: Upload file
-            const response = await fetch('http://localhost:8000/upload', {
+            const apiUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+            const response = await fetch(`${apiUrl}/upload`, {
                 method: 'POST',
                 body: formData,
             });
@@ -103,7 +104,10 @@ const FileUploader = () => {
     };
 
     const connectWebSocket = (fileId) => {
-        const wsUrl = `ws://localhost:8000/ws/analyze/${fileId}`;
+        const apiUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = apiUrl.replace(/^https?:\/\//, '');
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/analyze/${fileId}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

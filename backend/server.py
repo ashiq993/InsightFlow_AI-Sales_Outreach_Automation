@@ -1,13 +1,13 @@
 import os
 import sys
 import pandas as pd
+import logging
+import asyncio
+import threading
+import base64
 from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-import io
-import base64
-import subprocess
-import asyncio
 
 # Import project modules
 from src.graph import OutReachAutomation
@@ -16,6 +16,10 @@ from src.tools.google_docs_tools import GoogleDocsManager
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="InsightFlow AI Backend")
 
@@ -31,14 +35,31 @@ app.add_middleware(
 # Global instance of GoogleDocsManager to reuse credentials
 docs_manager = None
 
+class WebSocketLogHandler(logging.Handler):
+    """
+    Custom logging handler that sends log records to a WebSocket.
+    """
+    def __init__(self, websocket: WebSocket, loop):
+        super().__init__()
+        self.websocket = websocket
+        self.loop = loop
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Schedule the send_text coroutine in the main event loop
+            asyncio.run_coroutine_threadsafe(self.websocket.send_text(msg), self.loop)
+        except Exception:
+            self.handleError(record)
+
 @app.on_event("startup")
 async def startup_event():
     global docs_manager
     try:
         docs_manager = GoogleDocsManager()
-        print("GoogleDocsManager initialized successfully.")
+        logger.info("GoogleDocsManager initialized successfully.")
     except Exception as e:
-        print(f"Warning: Failed to initialize GoogleDocsManager: {e}")
+        logger.warning(f"Failed to initialize GoogleDocsManager: {e}")
 
 @app.post("/upload")
 async def upload_file_for_analysis(file: UploadFile = File(...)):
@@ -73,65 +94,121 @@ async def upload_file_for_analysis(file: UploadFile = File(...)):
 async def websocket_analyze(websocket: WebSocket, file_id: str):
     await websocket.accept()
     
-    tmp_path = ""
+    file_path = ""
     try:
         # Decode file_id to get path
-        tmp_path = base64.urlsafe_b64decode(file_id.encode()).decode()
+        file_path = base64.urlsafe_b64decode(file_id.encode()).decode()
         
-        if not os.path.exists(tmp_path):
+        if not os.path.exists(file_path):
             await websocket.send_text("Error: File not found or expired.")
             await websocket.close()
             return
 
         await websocket.send_text("Starting analysis process...")
         
-        # Run main.py as a subprocess
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        main_script = os.path.join(current_dir, "main.py")
+        # --- Load Data ---
+        try:
+            if file_path.endswith('.csv'):
+                df = pd.read_csv(file_path)
+            elif file_path.endswith(('.xls', '.xlsx')):
+                df = pd.read_excel(file_path)
+            else:
+                await websocket.send_text("Error: Invalid file format")
+                await websocket.close()
+                return
+        except Exception as e:
+            await websocket.send_text(f"Error loading file: {e}")
+            await websocket.close()
+            return
+
+        # --- Setup Logging to WebSocket ---
+        loop = asyncio.get_running_loop()
+        ws_handler = WebSocketLogHandler(websocket, loop)
+        ws_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')
+        ws_handler.setFormatter(formatter)
         
-        # Use the same python interpreter
-        python_exe = sys.executable
+        # Attach handler to the root logger so we capture logs from all modules
+        root_logger = logging.getLogger()
+        root_logger.addHandler(ws_handler)
         
-        process = subprocess.Popen(
-            [python_exe, main_script, tmp_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # Line buffered
-            cwd=current_dir
-        )
-        
-        processed_file_path = None
-        
-        # Stream output
-        for line in iter(process.stdout.readline, ''):
-            line = line.strip()
-            if line:
-                # Check for special output marker
-                if line.startswith("OUTPUT_FILE:"):
-                    processed_file_path = line.replace("OUTPUT_FILE:", "").strip()
-                else:
-                    await websocket.send_text(line)
-                    
-        process.stdout.close()
-        return_code = process.wait()
-        
-        if return_code != 0:
-            await websocket.send_text(f"Error: Process exited with code {return_code}")
-        else:
-            await websocket.send_text("Analysis complete.")
+        try:
+            # --- Column Validation & Normalization (Moved from main.py) ---
+            # Normalize existing columns to uppercase for consistent checking
+            df.columns = [c.strip().upper() for c in df.columns]
             
-            if processed_file_path and os.path.exists(processed_file_path):
+            # Ensure STATUS column exists and normalize to empty string
+            if "STATUS" not in df.columns:
+                logger.info("Adding missing column: STATUS with default: ''")
+                df["STATUS"] = ""
+            
+            # Fill NaN/None values in STATUS with empty string to ensure we catch them
+            df["STATUS"] = df["STATUS"].fillna("")
+            
+            # Ensure other required columns exist
+            if "LEAD_SCORE" not in df.columns:
+                logger.info("Adding missing column: LEAD_SCORE with default: 0")
+                df["LEAD_SCORE"] = 0
+            
+            if "QUALIFIED" not in df.columns:
+                logger.info("Adding missing column: QUALIFIED with default: 'NO'")
+                df["QUALIFIED"] = "NO"
+            
+            logger.info(f"Loaded {len(df)} records.")
+            
+            # --- Initialize Automation ---
+            lead_loader = FileLeadLoader(df)
+            
+            # Use global docs_manager if available
+            global docs_manager
+            if not docs_manager:
+                docs_manager = GoogleDocsManager()
+                
+            automation = OutReachAutomation(lead_loader, docs_manager)
+            app_graph = automation.app
+            
+            inputs = {"leads_ids": []}
+            config = {"recursion_limit": 1000}
+            
+            logger.info("Initializing automation graph...")
+            
+            # --- Run Graph in Thread ---
+            # We run the synchronous graph execution in a separate thread
+            # to avoid blocking the FastAPI event loop.
+            def run_graph():
+                return app_graph.invoke(inputs, config)
+            
+            result = await asyncio.to_thread(run_graph)
+            
+            logger.info("Analysis complete. Generating output...")
+            
+            # --- Save Processed File ---
+            output_dir = os.path.dirname(file_path)
+            filename = os.path.basename(file_path)
+            output_path = os.path.join(output_dir, f"Processed_{filename}")
+            
+            # Ensure extension is xlsx for output
+            if not output_path.endswith('.xlsx'):
+                output_path = os.path.splitext(output_path)[0] + '.xlsx'
+            
+            # Save the modified dataframe from the loader
+            df_to_save = lead_loader.df.copy()
+            if "id" in df_to_save.columns and df_to_save["id"].equals(df_to_save.index.astype(str)):
+                df_to_save = df_to_save.drop(columns=["id"])
+                
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                df_to_save.to_excel(writer, index=False)
+                
+            logger.info(f"Output saved to: {output_path}")
+            
+            # --- Upload to Drive ---
+            if os.path.exists(output_path):
                 await websocket.send_text("Uploading processed file to Drive...")
                 
-                processed_filename = os.path.basename(processed_file_path)
+                processed_filename = os.path.basename(output_path)
                 
-                global docs_manager
-                if not docs_manager:
-                    docs_manager = GoogleDocsManager()
-                    
                 drive_link = docs_manager.upload_file(
-                    processed_file_path, 
+                    output_path, 
                     processed_filename, 
                     "InsightFlow_Processed_Files", 
                     make_shareable=True
@@ -150,27 +227,31 @@ async def websocket_analyze(websocket: WebSocket, file_id: str):
                     
                 # Clean up processed file
                 try:
-                    os.unlink(processed_file_path)
+                    os.unlink(output_path)
                 except:
                     pass
             else:
                 await websocket.send_text("Error: Processed file not found.")
 
+        except Exception as e:
+            logger.error(f"Error during execution: {e}")
+            await websocket.send_text(f"Error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+        finally:
+            # Remove the custom handler
+            root_logger.removeHandler(ws_handler)
+
     except WebSocketDisconnect:
         print("Client disconnected")
-        if 'process' in locals() and process.poll() is None:
-            process.terminate()
     except Exception as e:
         print(f"WebSocket error: {e}")
-        try:
-            await websocket.send_text(f"Error: {str(e)}")
-        except:
-            pass
     finally:
         # Clean up input file
-        if tmp_path and os.path.exists(tmp_path):
+        if file_path and os.path.exists(file_path):
             try:
-                os.unlink(tmp_path)
+                os.unlink(file_path)
             except:
                 pass
         try:

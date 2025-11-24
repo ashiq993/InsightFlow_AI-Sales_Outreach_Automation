@@ -5,21 +5,23 @@ class FileLeadLoader(LeadLoaderBase):
     def __init__(self, df: pd.DataFrame):
         self.df = df
 
-    def fetch_records(self, status_filter="NEW"):
+    def fetch_records(self, status_filter=""):
         # Convert DataFrame to list of dicts
-        # We assume the DataFrame has the necessary columns
-        # Filter by status if 'STATUS' column exists, otherwise return all
+        # We assume the DataFrame has the necessary columns (validated in server.py or caller)
+        
+        # Filter by status if 'STATUS' column exists
+        # Note: server.py ensures STATUS column exists and is uppercase
         if "STATUS" in self.df.columns:
             filtered_df = self.df[self.df["STATUS"] == status_filter]
         else:
-            # If no status column, treat all as NEW if filter is NEW
-            if status_filter == "NEW":
+            # Fallback if validation skipped for some reason
+            if status_filter == "":
                 filtered_df = self.df
             else:
                 filtered_df = pd.DataFrame()
         
         # Add an 'id' column if not present, using index
-        if "id" not in filtered_df.columns:
+        if "id" not in filtered_df.columns and "ID" not in filtered_df.columns:
             filtered_df["id"] = filtered_df.index.astype(str)
             
         return filtered_df.to_dict(orient="records")

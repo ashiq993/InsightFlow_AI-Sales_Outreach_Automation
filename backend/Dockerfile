@@ -9,6 +9,8 @@ WORKDIR /app
 # Also installing curl for healthchecks if needed
 RUN apt-get update && apt-get install -y \
     gcc \
+    chromium \
+    chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file

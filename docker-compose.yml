@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   backend:
+    # 👉 Rebuild the backend image after modifying backend/Dockerfile
     build: ./backend
     ports:
       - "8000:8000"
@@ -10,6 +9,8 @@ services:
       - /app/__pycache__
     environment:
       - PYTHONUNBUFFERED=1
+      - CHROME_BIN=/usr/bin/chromium
+      - BROWSER=/usr/bin/chromium
     env_file:
       - ./backend/.env
 
@@ -21,6 +22,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://20.81.238.12:8000
     depends_on:
       - backend

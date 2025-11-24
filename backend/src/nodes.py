@@ -1,5 +1,7 @@
-from colorama import Fore, Style
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 from .tools.base.markdown_scraper_tool import scrape_website_to_markdown
 from .tools.base.search_tools import get_recent_news
 from .tools.base.gmail_tools import GmailTools
@@ -28,7 +30,7 @@ class OutReachAutomationNodes:
         self.drive_folder_name = ""
 
     def get_new_leads(self, state: GraphInputState):
-        print(Fore.YELLOW + "----- Fetching new leads -----\n" + Style.RESET_ALL)
+        logger.info("----- Fetching new leads -----")
 
         # Fetch new leads using the provided loader
         raw_leads = self.lead_loader.fetch_records()
@@ -86,17 +88,13 @@ class OutReachAutomationNodes:
                 )
             )
 
-        print(
-            Fore.YELLOW + f"----- Fetched {len(leads)} leads -----\n" + Style.RESET_ALL
-        )
+        logger.info(f"----- Fetched {len(leads)} leads -----")
         return {"leads_data": leads, "number_leads": len(leads)}
 
     @staticmethod
     def check_for_remaining_leads(state: GraphState):
         """Checks for remaining leads and updates lead_data in the state."""
-        print(
-            Fore.YELLOW + "----- Checking for remaining leads -----\n" + Style.RESET_ALL
-        )
+        logger.info("----- Checking for remaining leads -----")
 
         current_lead = None
         if state["leads_data"]:
@@ -108,24 +106,14 @@ class OutReachAutomationNodes:
         # Number of leads remaining
         num_leads = state["number_leads"]
         if num_leads > 0:
-            print(
-                Fore.YELLOW
-                + f"----- Found {num_leads} more leads -----\n"
-                + Style.RESET_ALL
-            )
+            logger.info(f"----- Found {num_leads} more leads -----")
             return "Found leads"
         else:
-            print(
-                Fore.GREEN + "----- Finished, No more leads -----\n" + Style.RESET_ALL
-            )
+            logger.info("----- Finished, No more leads -----")
             return "No more leads"
 
     def fetch_linkedin_profile_data(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Searching Lead data on LinkedIn -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Searching Lead data on LinkedIn -----")
         lead_data = state["current_lead"]
         company_data = state.get("company_data", CompanyData())
 
@@ -152,14 +140,12 @@ class OutReachAutomationNodes:
                 self.drive_folder_name, make_shareable=True
             )
         except Exception as e:
-            print(
-                f"Could not create or access Drive folder '{self.drive_folder_name}': {e}"
-            )
+            logger.error(f"Could not create or access Drive folder '{self.drive_folder_name}': {e}")
 
         return {"current_lead": lead_data, "company_data": company_data, "reports": []}
 
     def review_company_website(self, state: GraphState):
-        print(Fore.YELLOW + "----- Scraping company website -----\n" + Style.RESET_ALL)
+        logger.info("----- Scraping company website -----")
         lead_data = state.get("current_lead")
         company_data = state.get("company_data")
         company_website = company_data.website
@@ -233,9 +219,7 @@ class OutReachAutomationNodes:
         return {"reports": []}
 
     def analyze_blog_content(self, state: GraphState):
-        print(
-            Fore.YELLOW + "----- Analyzing company main blog -----\n" + Style.RESET_ALL
-        )
+        logger.info("----- Analyzing company main blog -----")
         reports_out = []
 
         # Check if company has a blog
@@ -258,11 +242,7 @@ class OutReachAutomationNodes:
         return {"reports": reports_out}
 
     def analyze_social_media_content(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Analyzing company social media accounts -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Analyzing company social media accounts -----")
 
         # Load states
         company_data = state["company_data"]
@@ -281,12 +261,12 @@ class OutReachAutomationNodes:
                 if youtube_data is None:
                     # Avoid passing None to LLM; provide clear context text instead
                     youtube_data = "Skipping YouTube analysis: No data returned."
-                    print(f"Skipping YouTube analysis: No data returned.")
+                    logger.warning("Skipping YouTube analysis: No data returned.")
             except Exception as e:
                 # If API key is missing or any other error occurs, skip the step but
                 # pass a textual error message to the LLM instead of None
                 youtube_data = f"Skipping YouTube analysis due to error: {str(e)}"
-                print(f"Skipping YouTube analysis due to error: {str(e)}")
+                logger.warning(f"Skipping YouTube analysis due to error: {str(e)}")
             prompt = YOUTUBE_ANALYSIS_PROMPT.format(company_name=company_data.name)
             youtube_insight = invoke_llm(
                 system_prompt=prompt,
@@ -313,11 +293,7 @@ class OutReachAutomationNodes:
         return {"company_data": company_data, "reports": reports_out}
 
     def analyze_recent_news(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Analyzing recent news about company -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Analyzing recent news about company -----")
 
         # Load states
         company_data = state["company_data"]
@@ -345,11 +321,7 @@ class OutReachAutomationNodes:
         return {"reports": [news_analysis_report]}
 
     def generate_digital_presence_report(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Generate Digital presence analysis report -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Generate Digital presence analysis report -----")
 
         # Load reports
         reports = state["reports"]
@@ -397,11 +369,7 @@ class OutReachAutomationNodes:
         return {"reports": [digital_presence_report]}
 
     def generate_full_lead_research_report(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Generate global lead analysis report -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Generate global lead analysis report -----")
 
         # Load reports
         reports = state["reports"]
@@ -440,7 +408,7 @@ class OutReachAutomationNodes:
         @param state: The current state of the application.
         @return: Updated state with the lead score.
         """
-        print(Fore.YELLOW + "----- Scoring lead -----\n" + Style.RESET_ALL)
+        logger.info("----- Scoring lead -----")
 
         # Load reports
         reports = state["reports"]
@@ -462,11 +430,7 @@ class OutReachAutomationNodes:
         @param state: The current state of the application.
         @return: Updated state with the qualification status.
         """
-        print(
-            Fore.YELLOW
-            + "----- Checking if lead is qualified -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Checking if lead is qualified -----")
         return {"reports": []}
 
     @staticmethod
@@ -478,13 +442,13 @@ class OutReachAutomationNodes:
         @return: Updated state with the qualification status.
         """
         # Checking if the lead score is 7 or higher
-        print(f"Score: {state['lead_score']}")
+        logger.info(f"Score: {state['lead_score']}")
         is_qualified = float(state["lead_score"]) >= 3
         if is_qualified:
-            print(Fore.GREEN + "Lead is qualified\n" + Style.RESET_ALL)
+            logger.info("Lead is qualified")
             return "qualified"
         else:
-            print(Fore.RED + "Lead is not qualified\n" + Style.RESET_ALL)
+            logger.info("Lead is not qualified")
             return "not qualified"
 
     @staticmethod
@@ -492,11 +456,7 @@ class OutReachAutomationNodes:
         return {"reports": []}
 
     def generate_custom_outreach_report(self, state: GraphState):
-        print(
-            Fore.YELLOW
-            + "----- Crafting Custom outreach report based on gathered information -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Crafting Custom outreach report based on gathered information -----")
 
         # Load reports
         reports = state["reports"]
@@ -572,11 +532,7 @@ class OutReachAutomationNodes:
         @param state: The current state of the application.
         @return: Updated state with the generated email.
         """
-        print(
-            Fore.YELLOW
-            + "----- Generating personalized email -----\n"
-            + Style.RESET_ALL
-        )
+        logger.info("----- Generating personalized email -----")
 
         # Load reports
         reports = state["reports"]
@@ -624,9 +580,7 @@ class OutReachAutomationNodes:
         return {"reports": [personalized_email_doc]}
 
     def generate_interview_script(self, state: GraphState):
-        print(
-            Fore.YELLOW + "----- Generating interview script -----\n" + Style.RESET_ALL
-        )
+        logger.info("----- Generating interview script -----")
 
         # Load reports
         reports = state["reports"]
@@ -667,9 +621,7 @@ class OutReachAutomationNodes:
         return {"reports": []}
 
     def save_reports_to_google_docs(self, state: GraphState):
-        print(
-            Fore.YELLOW + "----- Save Reports to Google Docs -----\n" + Style.RESET_ALL
-        )
+        logger.info("----- Save Reports to Google Docs -----")
 
         current_folder = self.drive_folder_name
         if not current_folder:
@@ -702,7 +654,7 @@ class OutReachAutomationNodes:
                 if self.docs_manager.document_exists_in_folder(
                     current_folder, report.title
                 ):
-                    print(
+                    logger.info(
                         f"Document '{report.title}' already exists in "
                         f"folder '{current_folder}', skipping."
                     )
@@ -719,7 +671,7 @@ class OutReachAutomationNodes:
         return state
 
     def update_CRM(self, state: GraphState):
-        print(Fore.YELLOW + "----- Updating CRM records -----\n" + Style.RESET_ALL)
+        logger.info("----- Updating CRM records -----")
 
         # Save new record data back to the CRM / Google Sheet.
         # For your Apollo-style Google Sheet we only update a STATUS column.
