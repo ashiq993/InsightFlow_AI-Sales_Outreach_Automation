@@ -7,8 +7,9 @@ from src.utils import get_google_credentials
 
 class GoogleDocsManager:
     def __init__(self):
-        self.docs_service = build("docs", "v1", credentials=get_google_credentials())
-        self.drive_service = build("drive", "v3", credentials=get_google_credentials())
+        # Disable cache_discovery to suppress oauth2client deprecation warning
+        self.docs_service = build("docs", "v1", credentials=get_google_credentials(), cache_discovery=False)
+        self.drive_service = build("drive", "v3", credentials=get_google_credentials(), cache_discovery=False)
 
     def folder_has_files(self, folder_path: str) -> bool:
         """

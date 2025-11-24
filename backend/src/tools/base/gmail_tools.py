@@ -5,7 +5,8 @@ from src.utils import get_google_credentials
 
 class GmailTools:
     def __init__(self):
-        self.service = build('gmail', 'v1', credentials=get_google_credentials())
+        # Disable cache_discovery to suppress oauth2client deprecation warning
+        self.service = build('gmail', 'v1', credentials=get_google_credentials(), cache_discovery=False)
 
     def create_draft_email(self, recipient, subject, email_content):
         try:

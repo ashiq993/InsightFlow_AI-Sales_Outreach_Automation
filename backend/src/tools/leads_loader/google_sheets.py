@@ -18,7 +18,8 @@ def _column_index_to_letter(index: int) -> str:
 
 class GoogleSheetLeadLoader(LeadLoaderBase):
     def __init__(self, spreadsheet_id, sheet_name=None):
-        self.sheet_service = build("sheets", "v4", credentials=get_google_credentials())
+        # Disable cache_discovery to suppress oauth2client deprecation warning
+        self.sheet_service = build("sheets", "v4", credentials=get_google_credentials(), cache_discovery=False)
         self.spreadsheet_id = spreadsheet_id
         self.sheet_name = sheet_name or self._get_sheet_name_from_id()
 
